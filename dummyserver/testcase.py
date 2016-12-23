@@ -9,6 +9,7 @@ from dummyserver.server import (
     run_tornado_app,
     run_loop_in_thread,
     DEFAULT_CERTS,
+    CHAIN_CERTS
 )
 from dummyserver.handlers import TestingApp
 from dummyserver.proxy import ProxyHandler
@@ -126,6 +127,10 @@ class HTTPSDummyServerTestCase(HTTPDummyServerTestCase):
     scheme = 'https'
     host = 'localhost'
     certs = DEFAULT_CERTS
+
+
+class HTTPSChainDummyServerTestCase(HTTPSDummyServerTestCase):
+    certs = CHAIN_CERTS
 
 
 class IPV6HTTPSDummyServerTestCase(HTTPSDummyServerTestCase):

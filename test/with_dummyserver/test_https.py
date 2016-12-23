@@ -9,12 +9,13 @@ import mock
 from nose.plugins.skip import SkipTest
 
 from dummyserver.testcase import (
-    HTTPSDummyServerTestCase, IPV6HTTPSDummyServerTestCase
+    HTTPSDummyServerTestCase, IPV6HTTPSDummyServerTestCase,
+    HTTPSChainDummyServerTestCase
 )
 from dummyserver.server import (DEFAULT_CA, DEFAULT_CA_BAD, DEFAULT_CERTS,
                                 NO_SAN_CERTS, NO_SAN_CA, DEFAULT_CA_DIR,
                                 IPV6_ADDR_CERTS, IPV6_ADDR_CA, HAS_IPV6,
-                                IP_SAN_CERTS)
+                                IP_SAN_CERTS, DEFAULT_CHAIN_CA)
 
 from test import (
     onlyPy26OrOlder,
@@ -519,6 +520,16 @@ class TestHTTPS_IPv6Addr(IPV6HTTPSDummyServerTestCase):
         https_pool = HTTPSConnectionPool('[::1]', self.port,
                                          cert_reqs='CERT_REQUIRED',
                                          ca_certs=IPV6_ADDR_CA)
+        r = https_pool.request('GET', '/')
+        self.assertEqual(r.status, 200)
+
+
+class TestHTTPSChainCerts(HTTPSChainDummyServerTestCase):
+    def test_handle_client_chain_certs(self):
+        https_pool = HTTPSConnectionPool(self.host, self.port,
+                                         cert_reqs='CERT_REQUIRED',
+                                         ca_certs=DEFAULT_CHAIN_CA)
+
         r = https_pool.request('GET', '/')
         self.assertEqual(r.status, 200)
 
