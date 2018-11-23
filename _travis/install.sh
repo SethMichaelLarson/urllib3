@@ -7,45 +7,28 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     sw_vers
     brew update || brew update
 
-    # https://github.com/travis-ci/travis-ci/issues/8826
-    brew cask uninstall oclint
+    # Uninstall oclint if it's installed. This is
+    # conditional because of build caching.
+    if brew ls --versions oclint >> /dev/null; then
+        brew cask uninstall oclint
+    fi
 
     brew outdated openssl || brew upgrade openssl
     brew install openssl@1.1
 
     # install pyenv
-    git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
-    PYENV_ROOT="$HOME/.pyenv"
-    PATH="$PYENV_ROOT/bin:$PATH"
+    if [[ ! -d ~/.pyenv ]]; then
+        git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
+        PYENV_ROOT="$HOME/.pyenv"
+        PATH="$PYENV_ROOT/bin:$PATH"
+    fi
     eval "$(pyenv init -)"
 
-    case "${TOXENV}" in
-        py27)
-            pyenv install 2.7.14
-            pyenv global 2.7.14
-            ;;
-        py34)
-            pyenv install 3.4.7
-            pyenv global 3.4.7
-            ;;
-        py35)
-            pyenv install 3.5.4
-            pyenv global 3.5.4
-            ;;
-        py36)
-            pyenv install 3.6.3
-            pyenv global 3.6.3
-            ;;
-        py37)
-            pyenv install 3.7-dev
-            pyenv global 3.7-dev
-            ;;
-        pypy*)
-            pyenv install "pypy-5.4.1"
-            pyenv global "pypy-5.4.1"
-            ;;
-    esac
-    pyenv rehash
+    if [[ -n "$PYENV_VERSION" ]]; then
+        wget https://github.com/praekeltfoundation/travis-pyenv/releases/download/0.4.0/setup-pyenv.sh
+        source setup-pyenv.sh
+    fi
+
     pip install -U setuptools
     pip install --user virtualenv
 else
