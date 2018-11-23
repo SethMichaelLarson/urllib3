@@ -13,17 +13,6 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
         brew cask uninstall oclint
     fi
 
-    brew outdated openssl || brew upgrade openssl
-    brew install openssl@1.1
-
-    # install pyenv
-    if [[ ! -d ~/.pyenv ]]; then
-        git clone --depth 1 https://github.com/yyuu/pyenv.git ~/.pyenv
-        PYENV_ROOT="$HOME/.pyenv"
-        PATH="$PYENV_ROOT/bin:$PATH"
-    fi
-    eval "$(pyenv init -)"
-
     if [[ -n "$PYENV_VERSION" ]]; then
         wget https://github.com/praekeltfoundation/travis-pyenv/releases/download/0.4.0/setup-pyenv.sh
         source setup-pyenv.sh
