@@ -1,14 +1,19 @@
 Changes
 =======
 
-dev (master)
-------------
+1.24.2 (2019-04-15)
+-------------------
+
+* Remove Authorization header regardless of case when redirecting to cross-site. (Issue #1510)
+
+* Add support for IPv6 addresses in subjectAltName section of certificates. (Issue #1269)
+
+1.24.1 (2018-11-02)
+-------------------
 
 * Remove quadratic behavior within ``GzipDecoder.decompress()`` (Issue #1467)
 
-* Restored functionality of `ciphers` parameter for `create_urllib3_context()`. (Issue #1462)
-
-* ... [Short description of non-trivial change.] (Issue #)
+* Restored functionality of ``ciphers`` parameter for ``create_urllib3_context()``. (Issue #1462)
 
 
 1.24 (2018-10-16)
