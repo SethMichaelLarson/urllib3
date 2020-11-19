@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import io
 import logging
 import socket
@@ -25,7 +26,6 @@ from urllib3.util.proxy import connection_requires_http_tunnel, create_proxy_ssl
 from urllib3.util.request import _FAILEDTELL, make_headers, rewind_body
 from urllib3.util.response import assert_header_parsing
 from urllib3.util.ssl_ import (
-    _const_compare_digest_backport,
     resolve_cert_reqs,
     resolve_ssl_version,
     ssl_wrap_socket,
@@ -670,16 +670,16 @@ class TestUtil:
 
     def test_const_compare_digest_fallback(self):
         target = hashlib.sha256(b"abcdef").digest()
-        assert _const_compare_digest_backport(target, target)
+        assert hmac.compare_digest(target, target)
 
         prefix = target[:-1]
-        assert not _const_compare_digest_backport(target, prefix)
+        assert not hmac.compare_digest(target, prefix)
 
         suffix = target + b"0"
-        assert not _const_compare_digest_backport(target, suffix)
+        assert not hmac.compare_digest(target, suffix)
 
         incorrect = hashlib.sha256(b"xyz").digest()
-        assert not _const_compare_digest_backport(target, incorrect)
+        assert not hmac.compare_digest(target, incorrect)
 
     def test_has_ipv6_disabled_on_compile(self):
         with patch("socket.has_ipv6", False):
@@ -880,10 +880,7 @@ class TestUtilSSL:
         """Test that a warning is not made if server_hostname is an IP address."""
         sock = object()
         context, warn = self._wrap_socket_and_mock_warn(sock, "8.8.8.8")
-        if util.IS_SECURETRANSPORT:
-            context.wrap_socket.assert_called_once_with(sock, server_hostname="8.8.8.8")
-        else:
-            context.wrap_socket.assert_called_once_with(sock)
+        context.wrap_socket.assert_called_once_with(sock, server_hostname="8.8.8.8")
         warn.assert_not_called()
 
     def test_ssl_wrap_socket_sni_none_no_warn(self):

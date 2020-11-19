@@ -365,7 +365,25 @@ class HTTPSConnection(HTTPConnection):
             )
 
         context = self.ssl_context
-        context.verify_mode = resolve_cert_reqs(self.cert_reqs)
+        verify_mode = resolve_cert_reqs(self.cert_reqs)
+
+        # Disable hostname verification when 'assert_fingerprint'
+        # is being used to verify the certificate.
+        if self.assert_fingerprint:
+            context_check_hostname = False
+        # If the hostname we're connecting to isn't the
+        # same as the one we're asserting then we
+        # disable SSLContext hostname verification
+        # and do it ourselves
+        else:
+            context_check_hostname = (
+                verify_mode == ssl.CERT_REQUIRED
+                and (self.assert_hostname is None
+                or self.assert_hostname == server_hostname)
+            )
+
+        context.check_hostname = context_check_hostname
+        context.verify_mode = verify_mode
 
         # Try to load OS default certs if none are given.
         # Works well on Windows (requires Python3.4+)
@@ -414,25 +432,15 @@ class HTTPSConnection(HTTPConnection):
             )
         elif (
             context.verify_mode != ssl.CERT_NONE
-            and not getattr(context, "check_hostname", False)
+            and not context_check_hostname
             and self.assert_hostname is not False
         ):
             # While urllib3 attempts to always turn off hostname matching from
             # the TLS library, this cannot always be done. So we check whether
             # the TLS Library still thinks it's matching hostnames.
-            cert = self.sock.getpeercert()
-            if not cert.get("subjectAltName", ()):
-                warnings.warn(
-                    (
-                        f"Certificate for {hostname} has no `subjectAltName`, falling back to check for a "
-                        "`commonName` for now. This feature is being removed by major browsers and "
-                        "deprecated by RFC 2818. (See https://github.com/urllib3/urllib3/issues/497 "
-                        "for details.)"
-                    ),
-                    SubjectAltNameWarning,
-                )
-            _match_hostname(cert, self.assert_hostname or server_hostname)
+            _match_hostname(self.sock.getpeercert(), self.assert_hostname)
 
+        print(self.sock.getpeercert())
         self.is_verified = (
             context.verify_mode == ssl.CERT_REQUIRED
             or self.assert_fingerprint is not None

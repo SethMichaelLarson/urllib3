@@ -19,21 +19,6 @@ ALPN_PROTOCOLS = ["http/1.1"]
 HASHFUNC_MAP = {32: md5, 40: sha1, 64: sha256}
 
 
-def _const_compare_digest_backport(a, b):
-    """
-    Compare two digests of equal length in constant time.
-
-    The digests must be of type str/bytes.
-    Returns True if the digests match, and False otherwise.
-    """
-    result = abs(len(a) - len(b))
-    for left, right in zip(bytearray(a), bytearray(b)):
-        result |= left ^ right
-    return result == 0
-
-
-_const_compare_digest = getattr(hmac, "compare_digest", _const_compare_digest_backport)
-
 try:  # Do we have ssl at all?
     import ssl
     from ssl import (
@@ -55,6 +40,12 @@ except ImportError:
     OP_NO_SSLv2 = 0x1000000
     OP_NO_SSLv3 = 0x2000000
     PROTOCOL_SSLv23 = PROTOCOL_TLS = 2
+
+try:
+    # Added in Python 3.7
+    from ssl import HAS_NEVER_CHECK_COMMON_NAME
+except ImportError:
+    HAS_NEVER_CHECK_COMMON_NAME = False
 
 
 # A secure default.
@@ -115,7 +106,7 @@ def assert_fingerprint(cert, fingerprint):
 
     cert_digest = hashfunc(cert).digest()
 
-    if not _const_compare_digest(cert_digest, fingerprint_bytes):
+    if not hmac.compare_digest(cert_digest, fingerprint_bytes):
         raise SSLError(
             f'Fingerprints did not match. Expected "{fingerprint}", got "{hexlify(cert_digest)}".'
         )
@@ -232,12 +223,6 @@ def create_urllib3_context(
         context.post_handshake_auth = True
 
     context.verify_mode = cert_reqs
-    if (
-        getattr(context, "check_hostname", None) is not None
-    ):  # Platform-specific: Python 3.2
-        # We do our own verification, including fingerprints and alternative
-        # hostnames. So disable it here
-        context.check_hostname = False
 
     # Enable logging of TLS session keys via defacto standard environment variable
     # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.
@@ -245,6 +230,10 @@ def create_urllib3_context(
         sslkeylogfile = os.environ.get("SSLKEYLOGFILE")
         if sslkeylogfile:
             context.keylog_filename = sslkeylogfile
+
+    # Disable verifying commonName on Python 3.7+ and OpenSSL 1.1.0+
+    if HAS_NEVER_CHECK_COMMON_NAME and hasattr(context, "hostname_checks_common_name"):
+        context.hostname_checks_common_name = False
 
     return context
 
@@ -325,10 +314,6 @@ def ssl_wrap_socket(
     # If we detect server_hostname is an IP address then the SNI
     # extension should not be used according to RFC3546 Section 3.1
     use_sni_hostname = server_hostname and not is_ipaddress(server_hostname)
-    # SecureTransport uses server_hostname in certificate verification.
-    send_sni = (use_sni_hostname and HAS_SNI) or (
-        IS_SECURETRANSPORT and server_hostname
-    )
     # Do not warn the user if server_hostname is an invalid SNI hostname.
     if not HAS_SNI and use_sni_hostname:
         warnings.warn(
@@ -342,13 +327,9 @@ def ssl_wrap_socket(
             SNIMissingWarning,
         )
 
-    if send_sni:
-        ssl_sock = _ssl_wrap_socket_impl(
-            sock, context, tls_in_tls, server_hostname=server_hostname
-        )
-    else:
-        ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls)
-    return ssl_sock
+    return _ssl_wrap_socket_impl(
+        sock, context, tls_in_tls, server_hostname=server_hostname
+    )
 
 
 def is_ipaddress(hostname):
